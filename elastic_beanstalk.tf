@@ -29,14 +29,51 @@ resource "aws_elastic_beanstalk_application_version" "eb_app_ver" {
 resource "aws_elastic_beanstalk_environment" "tfenv" {
   name                = "dev-flask-env"
   application         = aws_elastic_beanstalk_application.eb_app.name             # Elastic Beanstalk application name
-  solution_stack_name = "64bit Amazon Linux 2023 v4.2.0 running Python 3.12"       # Define current version of the platform
-  description         = "environment for Flask app"                              # Define environment description
+  solution_stack_name = "64bit Amazon Linux 2023 v4.2.0 running Python 3.12"      # Define current version of the platform
+  description         = "environment for Flask app"                               # Define environment description
   version_label       = aws_elastic_beanstalk_application_version.eb_app_ver.name # Define version label
 
+  # Attach to VPC
+  setting {
+    namespace = "aws:ec2:vpc"
+    name      = "VPCId"
+    value     = module.vpc.vpc_id # VPC ID reference
+  }
+
+  #Elastic Beanstalk EC2 Instance role
   setting {
     namespace = "aws:autoscaling:launchconfiguration" # Define namespace
     name      = "IamInstanceProfile"                  # Define name
     value     = "aws-elasticbeanstalk-ec2-role"       # Define value
   }
+
+  # Specify the key pair to attach to EC2 instances
+  setting {
+    namespace = "aws:autoscaling:launchconfiguration"
+    name      = "EC2KeyName"
+    value     = module.key_pair.key_pair_name # Replace with your actual key pair name
+  }
+
+  # Define public subnets for Load Balancer (if using an ELB)
+  setting {
+    namespace = "aws:ec2:vpc"
+    name      = "Subnets"
+    value     = join(",", module.vpc.public_subnets)
+  }
+
+  # Optionally configure other settings like security groups
+  setting {
+    namespace = "aws:autoscaling:launchconfiguration"
+    name      = "SecurityGroups"
+    value     = module.EC2-security-group.security_group_id
+  }
+
+  # Enable public IP assignment
+  setting {
+    namespace = "aws:ec2:vpc"
+    name      = "AssociatePublicIpAddress"
+    value     = "true"
+  }
+
 }
 
